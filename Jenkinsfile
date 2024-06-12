@@ -11,7 +11,7 @@ pipeline {
         stage('Build docker image'){
             steps{
                 script{
-                    sh 'docker build -t kirankomroju/FinanceMe:1 .'
+                    sh 'docker build -t kirankomroju/financeme:1 .'
                     sh 'docker images'
                 }
             }
@@ -21,7 +21,7 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-pwd', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
                     sh "echo $PASS | docker login -u $USER --password-stdin"
-                    sh 'docker push kirankomroju/FinanceMe:1'
+                    sh 'docker push kirankomroju/financeme:1'
                 }
             }
         } 
