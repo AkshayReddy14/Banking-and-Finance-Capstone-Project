@@ -25,7 +25,13 @@ pipeline {
                 }
             }
         } 
-     
+     stage('Deploy') {
+            steps {
+                ansiblePlaybook become: true, credentialsId: 'ansible', disableHostKeyChecking: true, installation: 'ansible', inventory: '/etc/ansible/hosts', playbook: '/var/lib/jenkins/workspace/FinanceMe/ansible-playbook.yml', vaultTmpPath: ''
+				echo'We have successfully deployed the InsureMe application using Ansible'
+                  
+                }
+            }
         
     }
 }
