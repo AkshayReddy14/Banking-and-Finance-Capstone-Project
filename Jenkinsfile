@@ -1,37 +1,53 @@
 pipeline {
-    agent any
-    stages{
-        stage('build project'){
-            steps{
-                git url:'https://github.com/Kiran-Komroju/FinanceME/', branch: "master"
-                sh 'mvn clean package'
-              
-            }
-        }
-        stage('Build docker image'){
-            steps{
-                script{
-                    sh 'docker build -t kirankomroju/financeme:1 .'
-                    sh 'docker images'
-                }
-            }
-        }
-         
-       stage('Docker login') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-pwd', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
-                    sh "echo $PASS | docker login -u $USER --password-stdin"
-                    sh 'docker push kirankomroju/financeme:1'
-                }
-            }
-        } 
-     stage('Deploy') {
-            steps {
-                ansiblePlaybook become: true, credentialsId: 'ansible', disableHostKeyChecking: true, installation: 'ansible', inventory: '/etc/ansible/hosts', playbook: '/var/lib/jenkins/workspace/FinanceMe/ansible-playbook.yml', vaultTmpPath: ''
-				echo'We have successfully deployed the FinanceMe application using Ansible'
-                  
-                }
-            }
-        
+    agent { label 'slave1' }
+
+    environment {
+        DOCKERHUB_CREDENTIALS=credentials('dockerloginid')
     }
-}
+
+    stages {
+        stage('SCM_Checkout') {
+            steps {
+                echo 'Perform SCM Checkout'
+                git 'https://github.com/SA-AWS-DevOps-July24/BankingApp.git'
+            }
+        }
+
+        stage('Application Build') {
+            steps {
+                echo 'Perform Application Build'
+                sh 'mvn clean package'
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                echo 'Perform Docker Build'
+                sh "docker build -t akshay14032003/bankingapp:${BUILD_NUMBER} ."
+                sh 'docker image list'
+             } 
+        }
+
+        stage('Login to DockerHub') {
+            steps {
+                echo 'Login to DockerHub'
+                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+            }
+        }
+
+        stage('Publish the Image to DockerHub') {
+            steps {
+                echo 'Publish to DockerHub'
+                sh "docker push akshay14032003/bankingapp:${BUILD_NUMBER}"
+            }
+        }
+
+
+        stage('Deploy with Ansible') {
+            steps {
+                ansiblePlaybook credentialsId: 'slave1', installation: 'ansible', inventory: '/etc/ansible/hosts', playbook: '/etc/ansible/playbooks/deploy.yaml', vaultTmpPath: ''
+               }
+           }
+       
+       }
+   }
