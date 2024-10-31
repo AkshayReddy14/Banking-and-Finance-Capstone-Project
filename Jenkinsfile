@@ -23,7 +23,7 @@ pipeline {
         stage('Docker Build') {
             steps {
                 echo 'Perform Docker Build'
-                sh "docker build -t akshay14032003/bankingapp:${BUILD_NUMBER} ."
+                sh "docker build -t akshay14032003/banking-finance:${BUILD_NUMBER} ."
                 sh 'docker image list'
              } 
         }
@@ -38,7 +38,7 @@ pipeline {
         stage('Publish the Image to DockerHub') {
             steps {
                 echo 'Publish to DockerHub'
-                sh "docker push akshay14032003/bankingapp:${BUILD_NUMBER}"
+                sh "docker push akshay14032003/banking-finance:${BUILD_NUMBER}"
             }
         }
 
@@ -51,3 +51,4 @@ pipeline {
        
        }
    }
+   
