@@ -1,8 +1,8 @@
 - name : Configure Docker on EC2 Instances
-  hosts : all
+  hosts : samplenode1
   become: true
   #connection : ssh
-  tasks : 
+  tasks :
   - name: updating apt
     command : sudo apt-get update
 
@@ -13,4 +13,4 @@
     command : sudo systemctl start docker
 
   - name: Deploy Docker Container
-    command: docker run -itd -p 8888:8081 kirankomroju/financeme:1
+    command: docker run -itd -p 8084:8081 banking-finance:1
