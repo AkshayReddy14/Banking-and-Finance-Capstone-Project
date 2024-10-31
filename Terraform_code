@@ -1,54 +1,105 @@
-pipeline {
-    agent { label 'slave1' }
+provider "aws" {
+region = "ap-south-1"
+access_key = "*****"
+secret_key = "*****"
+}
 
-    environment {
-        DOCKERHUB_CREDENTIALS=credentials('dockerloginid')
-    }
+#Creating a VPC
+resource "aws_vpc" "avpc" {
+cidr_block = "10.0.0.0/16"
+}
 
-    stages {
-        stage('SCM_Checkout') {
-            steps {
-                echo 'Perform SCM Checkout'
-                git 'https://github.com/SA-AWS-DevOps-July24/BankingApp.git'
-            }
-        }
+resource "aws_internet_gateway" "agw" {
+vpc_id = aws_vpc.avpc.id
+}
 
-        stage('Application Build') {
-            steps {
-                echo 'Perform Application Build'
-                sh 'mvn clean package'
-            }
-        }
+#Creating a Route Table
+resource "aws_route_table" "art" {
+vpc_id = aws_vpc.avpc.id
+route {
+# Pointing to the internet
+cidr_block = "0.0.0.0/0"
+gateway_id = aws_internet_gateway.agw.id
+}
+}
 
-        stage('Docker Build') {
-            steps {
-                echo 'Perform Docker Build'
-                sh "docker build -t akshay14032003/banking-finance:${BUILD_NUMBER} ."
-                sh 'docker image list'
-             } 
-        }
+#Creating a Subnet
+resource "aws_subnet" "asb" {
+vpc_id = aws_vpc.avpc.id
+cidr_block = "10.0.1.0/24"
+map_public_ip_on_launch = true
+}
 
-        stage('Login to DockerHub') {
-            steps {
-                echo 'Login to DockerHub'
-                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
-            }
-        }
+# Associating the Subnet with the Route Table
+resource "aws_route_table_association" "arta" {
+subnet_id = aws_subnet.asb.id
+route_table_id = aws_route_table.art.id
+}
 
-        stage('Publish the Image to DockerHub') {
-            steps {
-                echo 'Publish to DockerHub'
-                sh "docker push akshay14032003/banking-finance:${BUILD_NUMBER}"
-            }
-        }
+# Creating a Security Group
+resource "aws_security_group" "sg1" {
+  name        = "sg1"
+  description = "Security group for Master instance allowing all traffic"
+  vpc_id      = aws_vpc.avpc.id
+
+  # Inbound rules allowing all traffic
+  ingress {
+    description = "All traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Outbound rules allowing all traffic
+  egress {
+    description = "All traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+ tags = {
+    Name = "sg1"
+  }
+}
 
 
-        stage('Deploy with Ansible') {
-            steps {
-                ansiblePlaybook credentialsId: 'slave1', installation: 'ansible', inventory: '/etc/ansible/hosts', playbook: '/etc/ansible/playbooks/deploy.yaml', vaultTmpPath: ''
-               }
-           }
-       
-       }
-   }
-   
+# Creating First EC2 instance with t2.medium
+resource "aws_instance" "Master" {
+   count = 2  # Create 2 instances
+  ami           = "ami-05e00961530ae1b55"
+  instance_type = "t2.medium"
+  key_name      = "VK"
+  subnet_id     = aws_subnet.asb.id
+
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp2"
+  }
+
+  security_groups = [aws_security_group.sg1.id]
+
+  tags = {
+    Name = format("Host%d", count.index)  # Generate unique names
+  }
+}
+
+resource "aws_instance" "Host" {
+ 
+  ami           = "ami-0e0e417dfa2028266"
+  instance_type = "t2.micro"
+  key_name      = "VK"
+  subnet_id     = aws_subnet.asb.id
+
+  root_block_device {
+    volume_size = 8
+    volume_type = "gp2"
+  }
+
+  security_groups = [aws_security_group.sg1.id]
+
+  tags = {
+    Name = "Monitoring Server"
+  }
+}
